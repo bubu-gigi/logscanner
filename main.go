@@ -72,12 +72,16 @@ func handleArguments() (string, []string, []string, string, int) {
 }
 
 func scanFiles(startDir string, exts, keywords []string, numWorkers int) ([]Match, error) {
+  // matches for storing the matches lines
   var matches []Match
+  // mutex for handling critical section matches
   var matchesMu sync.Mutex
-
+  // channel where WalkDir'll store the file's path
   fileChan := make(chan string, 100)
+  // group of workers
   wg := sync.WaitGroup{}
-
+  // initialize the workers to wait on the channel 
+  // this follows a producer–consumer pattern: the workers consume the files and the WalkDir produces the files to consume
   for i := 0; i<numWorkers; i++ {
     wg.Add(1)
     workerId := i
@@ -106,6 +110,7 @@ func scanFiles(startDir string, exts, keywords []string, numWorkers int) ([]Matc
   return matches, err
 }
 
+// func used by a single worker to process a single file
 func processFile(path string, keywords []string, matches *[]Match, mu *sync.Mutex) {
   file, err := os.Open(path)
   if err != nil {
@@ -119,6 +124,7 @@ func processFile(path string, keywords []string, matches *[]Match, mu *sync.Mute
   for scanner.Scan() {
     line := scanner.Text()
     if utils.ContainsKeyword(line, keywords) {
+      // only one worker at a time is allowed to write to the file
       mu.Lock()
       *matches = append(*matches, Match{
         File: path,
