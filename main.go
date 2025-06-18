@@ -8,6 +8,7 @@ import (
   "bufio"
   "logscanner/utils"
   "encoding/json"
+  "strings"
 )
 
 type Match struct { 
@@ -17,7 +18,7 @@ type Match struct {
 }
 
 func main() {
-  startDir, exts, keywords := handleArguments()
+  startDir, exts, keywords, outputFile := handleArguments()
 
   fmt.Printf("Searching files in '%s' with extention '%v' and keywords '%v'\n", startDir, exts, keywords)
 
@@ -34,13 +35,27 @@ func main() {
     os.Exit(1)
   }
 
-  fmt.Println(string(jsonData))
+  if outputFile != "" {
+    if !strings.HasSuffix(outputFile, ".json") {
+			outputFile += ".json"
+		}
+
+		err := os.WriteFile(outputFile, jsonData, 0644)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing to output file: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Results written to %s\n", outputFile)
+  } else {
+    fmt.Println(string(jsonData))
+  }
 }
 
-func handleArguments() (string, []string, []string) {
+func handleArguments() (string, []string, []string, string) {
   startDir := flag.String("startDir", "/", "Starting directory where search")
   ext := flag.String("ext", ".log,.csv", "Extention to search")
   key := flag.String("keyword", "", "Keywords to search")
+  outputFile := flag.String("output", "", "Path to save the result")
   flag.Parse()
 
   exts := utils.SplitAndTrim(*ext)
@@ -51,7 +66,7 @@ func handleArguments() (string, []string, []string) {
     os.Exit(1)
   }
 
-  return *startDir, exts, keywords
+  return *startDir, exts, keywords, *outputFile
 }
 
 func scanFiles(startDir string, exts, keywords []string) ([]Match, error) {
